@@ -1,10 +1,13 @@
 'use client'
 
 // React Imports
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+import { useRouter } from 'next/navigation'
+
+import Cookies from 'js-cookie'
 
 // Next Imports
-import { useRouter } from 'next/navigation'
 
 // MUI Imports
 import { styled } from '@mui/material/styles'
@@ -19,6 +22,11 @@ import Typography from '@mui/material/Typography'
 import Divider from '@mui/material/Divider'
 import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
+
+import { useDispatch, useSelector } from 'react-redux'
+
+import { useLogoutUserMutation } from '@/redux/features/authApiSlice'
+import { setAuth } from '@/redux/features/authSlice'
 
 // Hook Imports
 import { useSettings } from '@core/hooks/useSettings'
@@ -36,6 +44,13 @@ const BadgeContentSpan = styled('span')({
 const UserDropdown = () => {
   // States
   const [open, setOpen] = useState(false)
+  const [logoutUser, { isLoading, isError, error }] = useLogoutUserMutation()
+  const isAuthenticated = useSelector(state => state.auth.isAuthenticated)
+
+  const user = useSelector(state => state.auth.user)
+  const userName = user ? `${user.first_name} ${user.last_name}` : ''
+  const userEmail = user?.email || ''
+  const dispatch = useDispatch()
 
   // Refs
   const anchorRef = useRef(null)
@@ -61,9 +76,24 @@ const UserDropdown = () => {
   }
 
   const handleUserLogout = async () => {
-    // Redirect to login page
+    await logoutUser()
     router.push('/login')
   }
+
+  useEffect(() => {
+    const user = Cookies.get('authUser')
+
+    if (user) {
+      const parsedUser = typeof user === 'string' ? JSON.parse(user) : user
+
+      dispatch(
+        setAuth({
+          isAuthenticated: true,
+          user: parsedUser
+        })
+      )
+    }
+  }, [dispatch])
 
   return (
     <>
@@ -104,9 +134,9 @@ const UserDropdown = () => {
                     <Avatar alt='John Doe' src='/images/avatars/1.png' />
                     <div className='flex items-start flex-col'>
                       <Typography className='font-medium' color='text.primary'>
-                        John Doe
+                        {userName}
                       </Typography>
-                      <Typography variant='caption'>admin@vuexy.com</Typography>
+                      <Typography variant='caption'>{userEmail}</Typography>
                     </div>
                   </div>
                   <Divider className='mlb-1' />
@@ -135,8 +165,9 @@ const UserDropdown = () => {
                       endIcon={<i className='tabler-logout' />}
                       onClick={handleUserLogout}
                       sx={{ '& .MuiButton-endIcon': { marginInlineStart: 1.5 } }}
+                      disabled={isLoading || !isAuthenticated}
                     >
-                      Logout
+                      {isLoading ? 'Logging out' : isAuthenticated ? 'Logout' : 'Logout Successfully'}
                     </Button>
                   </div>
                 </MenuList>

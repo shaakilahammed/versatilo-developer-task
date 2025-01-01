@@ -1,4 +1,8 @@
 // Component Imports
+import { cookies } from 'next/headers'
+
+import { redirect } from 'next/navigation'
+
 import Login from '@views/Login'
 
 // Server Action Imports
@@ -9,7 +13,14 @@ export const metadata = {
   description: 'Login to your account'
 }
 
-const LoginPage = () => {
+const LoginPage = async () => {
+  const cookieStore = await cookies()
+  const access_token = cookieStore.get('access_token')
+
+  if (access_token) {
+    redirect('/home')
+  }
+
   // Vars
   const mode = getServerMode()
 

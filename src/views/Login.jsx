@@ -1,10 +1,13 @@
 'use client'
 
 // React Imports
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+import { useRouter } from 'next/navigation'
+
+import Cookies from 'js-cookie'
 
 // Next Imports
-import { useRouter } from 'next/navigation'
 
 // MUI Imports
 import useMediaQuery from '@mui/material/useMediaQuery'
@@ -21,6 +24,8 @@ import Divider from '@mui/material/Divider'
 import classnames from 'classnames'
 
 // Component Imports
+import { useDispatch, useSelector } from 'react-redux'
+
 import Link from '@components/Link'
 import Logo from '@components/layout/shared/Logo'
 import CustomTextField from '@core/components/mui/TextField'
@@ -31,6 +36,9 @@ import themeConfig from '@configs/themeConfig'
 // Hook Imports
 import { useImageVariant } from '@core/hooks/useImageVariant'
 import { useSettings } from '@core/hooks/useSettings'
+
+import { useLoginUserMutation, useLogoutUserMutation } from '../redux/features/authApiSlice'
+import { setAuth } from '../redux/features/authSlice'
 
 // Styled Custom Components
 const LoginIllustration = styled('img')(({ theme }) => ({
@@ -85,6 +93,38 @@ const LoginV2 = ({ mode }) => {
 
   const handleClickShowPassword = () => setIsPasswordShown(show => !show)
 
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [login, { isLoading, isError, error }] = useLoginUserMutation()
+  const [loginError, setLoginError] = useState(null)
+  const dispatch = useDispatch()
+  const isAuthenticated = useSelector(state => state.auth.isAuthenticated)
+
+  const handleSubmit = async e => {
+    e.preventDefault()
+    setLoginError(null)
+
+    try {
+      const result = await login({ email, password }).unwrap()
+
+      if (result?.success) {
+        const user = result.results.user
+
+        dispatch(
+          setAuth({
+            isAuthenticated: true,
+            user: user
+          })
+        )
+        router.push('/home')
+      } else {
+        setLoginError(result.message)
+      }
+    } catch (err) {
+      setLoginError('Invalid Email or Password')
+    }
+  }
+
   return (
     <div className='flex bs-full justify-center'>
       <div
@@ -112,23 +152,26 @@ const LoginV2 = ({ mode }) => {
           <div className='flex flex-col gap-1'>
             <Typography variant='h4'>{`Welcome to ${themeConfig.templateName}! 👋🏻`}</Typography>
             <Typography>Please sign-in to your account and start the adventure</Typography>
+            {loginError && <span className='text-white bg-red-500 p-1 rounded-sm'>{loginError}</span>}
           </div>
-          <form
-            noValidate
-            autoComplete='off'
-            onSubmit={e => {
-              e.preventDefault()
-              router.push('/')
-            }}
-            className='flex flex-col gap-5'
-          >
-            <CustomTextField autoFocus fullWidth label='Email or Username' placeholder='Enter your email or username' />
+          <form noValidate autoComplete='off' onSubmit={handleSubmit} className='flex flex-col gap-5'>
+            <CustomTextField
+              autoFocus
+              fullWidth
+              label='Email or Username'
+              placeholder='Enter your email or username'
+              type='email'
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
             <CustomTextField
               fullWidth
               label='Password'
               placeholder='············'
               id='outlined-adornment-password'
               type={isPasswordShown ? 'text' : 'password'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position='end'>
@@ -145,9 +188,10 @@ const LoginV2 = ({ mode }) => {
                 Forgot password?
               </Typography>
             </div>
-            <Button fullWidth variant='contained' type='submit'>
-              Login
+            <Button fullWidth variant='contained' type='submit' disabled={isLoading || isAuthenticated}>
+              {isLoading ? 'Logging in' : isAuthenticated ? 'Login Successfully' : 'Login'}
             </Button>
+
             <div className='flex justify-center items-center flex-wrap gap-2'>
               <Typography>New on our platform?</Typography>
               <Typography component={Link} color='primary'>
